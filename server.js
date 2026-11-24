@@ -26,7 +26,7 @@ app.get('/api/tts', (req, res) => {
 });
 
 // Thay bằng username TikTok Live của bạn (không có @)
-const TIKTOK_USERNAME = 'cain_vol_silford_0';
+const TIKTOK_USERNAME = 'cain_von_silford_0';
 
 function broadcast(payload) {
   const message = JSON.stringify(payload);

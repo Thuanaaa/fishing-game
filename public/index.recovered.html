@@ -1,0 +1,1482 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>🎣 TikTok Live Fishing</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      background: #07101f;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Nunito', 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    #wrap {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      border-radius: 14px;
+      box-shadow: 0 0 60px rgba(0, 180, 255, .35), 0 0 130px rgba(0, 80, 200, .2);
+      border: 2px solid rgba(50, 200, 255, .3);
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%
+    }
+
+    #gc {
+      pointer-events: none
+    }
+
+    /* ── UI overlay ── */
+    #ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none
+    }
+
+    /* live header */
+    #lh {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: linear-gradient(180deg, rgba(0, 0, 0, .8) 0%, transparent 100%);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+    }
+
+    #ldot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #ff3333;
+      box-shadow: 0 0 10px #f00;
+      animation: blink 1s infinite
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .25
+      }
+    }
+
+    #llbl {
+      font-size: 12px;
+      font-weight: 900;
+      color: #ff3333;
+      letter-spacing: 1.5px
+    }
+
+    #lvc {
+      font-size: 11px;
+      color: #aaa
+    }
+
+    #ltitle {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffd54f;
+      margin-left: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 650px
+    }
+
+    /* panels */
+    .panel {
+      position: absolute;
+      background: rgba(4, 12, 30, .88);
+      border: 1px solid rgba(80, 180, 255, .22);
+      border-radius: 12px;
+      padding: 11px 13px;
+      backdrop-filter: blur(10px);
+    }
+
+    #guide {
+      top: 56px;
+      left: 11px;
+      width: 195px
+    }
+
+    #guide h3 {
+      font-size: 12px;
+      font-weight: 900;
+      color: #64ffda;
+      margin-bottom: 7px;
+      border-bottom: 1px solid rgba(100, 255, 218, .18);
+      padding-bottom: 5px
+    }
+
+    .gr {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 3px 0;
+      color: #c8e6f7
+    }
+
+    .gr strong {
+      color: #ffd54f
+    }
+
+    #lb {
+      top: 56px;
+      right: 11px;
+      width: 218px
+    }
+
+    #lb h3 {
+      font-size: 12px;
+      font-weight: 900;
+      color: #ffd54f;
+      margin-bottom: 7px;
+      border-bottom: 1px solid rgba(255, 213, 79, .2);
+      padding-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    .lr {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      padding: 3.5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .05)
+    }
+
+    .lr-rank {
+      font-weight: 900;
+      color: #ffd54f;
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0
+    }
+
+    .lr-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #ddf
+    }
+
+    .lr-kg {
+      font-weight: 800;
+      color: #64ffda;
+      font-size: 10.5px;
+      white-space: nowrap
+    }
+
+    #rec {
+      bottom: 88px;
+      right: 11px;
+      min-width: 175px
+    }
+
+    #rec h4 {
+      font-size: 10px;
+      color: #ffd54f;
+      margin-bottom: 4px;
+      letter-spacing: .5px
+    }
+
+    #rec .rv {
+      font-size: 21px;
+      font-weight: 900
+    }
+
+    #rec .rs {
+      font-size: 10px;
+      color: #90caf9;
+      margin-top: 1px
+    }
+
+    /* queue ticker */
+    #qtick {
+      position: absolute;
+      bottom: 88px;
+      left: 11px;
+      right: 235px;
+      background: rgba(4, 12, 30, .88);
+      border: 1px solid rgba(80, 180, 255, .22);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 11px;
+      line-height: 1.4;
+      display: none;
+    }
+
+    #qtick span {
+      color: #ffd54f;
+      font-weight: 800
+    }
+
+    /* center banner */
+    #banner {
+      position: absolute;
+      top: 46%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(.8);
+      background: linear-gradient(135deg, #ff6f00, #ffca28);
+      color: #1a0800;
+      font-weight: 900;
+      font-size: 19px;
+      padding: 12px 30px;
+      border-radius: 999px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+      box-shadow: 0 6px 40px rgba(255, 160, 0, .65);
+      z-index: 50;
+    }
+
+    #banner.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1)
+    }
+
+    /* fish popup */
+    .fpop {
+      position: absolute;
+      pointer-events: none;
+      animation: popUp 2s ease-out forwards;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+      z-index: 40;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, .7);
+    }
+
+    @keyframes popUp {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1)
+      }
+
+      65% {
+        opacity: 1;
+        transform: translateY(-52px) scale(1.08)
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-75px) scale(.9)
+      }
+    }
+
+    /* join popup */
+    .jpop {
+      position: absolute;
+      pointer-events: none;
+      animation: joinPop 2.2s ease-out forwards;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+      z-index: 38;
+      background: rgba(0, 0, 0, .55);
+      border-radius: 20px;
+      padding: 4px 10px;
+      border: 1px solid rgba(100, 230, 255, .35);
+      color: #a0f0ff;
+    }
+
+    @keyframes joinPop {
+      0% {
+        opacity: 0;
+        transform: translateY(10px)
+      }
+
+      15% {
+        opacity: 1;
+        transform: translateY(0)
+      }
+
+      75% {
+        opacity: 1;
+        transform: translateY(-30px)
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-50px)
+      }
+    }
+
+    /* dev panel */
+    #dev {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 7px;
+      background: rgba(0, 0, 0, .65);
+      padding: 7px 14px;
+      border-radius: 12px;
+      pointer-events: all;
+    }
+
+    #dev button {
+      border: none;
+      padding: 6px 13px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .1s, box-shadow .1s;
+    }
+
+    #dev button:active {
+      transform: scale(.92)
+    }
+
+    .bf {
+      background: #80cbc4;
+      color: #003d35
+    }
+
+    .bn {
+      background: #69f0ae;
+      color: #003300
+    }
+
+    .bg {
+      background: #ffd54f;
+      color: #332000
+    }
+
+    .bl {
+      background: #ff5252;
+      color: #fff
+    }
+
+    /* sound toggle */
+    #stoggle {
+      position: absolute;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: all;
+      background: rgba(4, 12, 30, .88);
+      border: 1px solid rgba(80, 180, 255, .22);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #a0f0ff;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    #stoggle:hover {
+      background: rgba(10, 30, 60, .95)
+    }
+  </style>
+</head>
+
+<body>
+  <div id="wrap">
+    <canvas id="bc" width="1280" height="720"></canvas>
+    <canvas id="gc" width="1280" height="720"></canvas>
+
+    <div id="ui">
+      <div id="lh">
+        <div id="ldot"></div>
+        <span id="llbl">LIVE</span>
+        <span id="lvc">👁 —</span>
+        <span id="ltitle">🎣 Fishing Game</span>
+      </div>
+
+      <button id="stoggle" onclick="toggleSound()">🔊 Tiếng: <span id="slbl">BẬT</span></button>
+
+      <div class="panel" id="guide">
+        <h3>🎣 Thể Lệ Đài Câu</h3>
+        <div class="gr"><span>💬 Cmt "Vào câu"</span><strong>Vào đài vĩnh viễn</strong></div>
+        <div class="gr"><span>❤️ 100 Tim</span><strong>⚡ Tăng tốc độ câu</strong></div>
+        <div class="gr"><span>5 xu</span><strong>⚡ Cắn siêu nhanh</strong></div>
+        <div class="gr"><span>10 xu</span><strong>⚡ Cá lớn</strong></div>
+        <div class="gr"><span>50 xu</span><strong>🐉 Cá Thần Khổng Lồ</strong></div>
+        <div class="gr"
+          style="margin-top:7px;border-top:1px solid rgba(255,255,255,.08);padding-top:5px;font-size:9.5px;color:#7ba7c0">
+          Giới hạn 50 cần thủ • Không biến mất khi câu xong!
+        </div>
+      </div>
+
+      <div class="panel" id="lb">
+        <h3>🏆 Top Cần Thủ Hôm Nay</h3>
+        <div id="lbl">
+          <div class="lr"><span class="lr-name" style="color:#444">Chưa có dữ liệu...</span></div>
+        </div>
+      </div>
+
+      <div class="panel" id="rec">
+        <h4>🏅 KỶ LỤC PHIÊN</h4>
+        <div class="rv" id="rv">0 kg</div>
+        <div class="rs" id="rs">Chưa có kỷ lục</div>
+      </div>
+
+      <div id="qtick">
+        ⏳ Hàng đợi: <span id="qcnt">0</span> lượt
+        <span id="qnames" style="color:#90caf9;margin-left:6px;font-size:10px"></span>
+      </div>
+
+      <div id="banner">🔥 THẦN CÁ XUẤT HIỆN!</div>
+
+      <div id="dev" title="Nhấn H để ẩn khi live">
+        <button class="bf" onclick="simComment()">💬 Cmt "Vào câu"</button>
+        <button class="bf" style="background:#ff4081;color:#fff" onclick="simLikeBoost()">❤️ 100 Tim (Tăng tốc)</button>
+        <button class="bn" onclick="simGift('5XU')">⚡ 5 xu (5-7s)</button>
+        <button class="bg" onclick="simGift('10XU')">⚡ 10 xu (3-4s)</button>
+        <button class="bl" onclick="simGift('50XU')">🐉 50 xu (3-4s)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ╔══════════════════════════════════════════════════╗
+    // ║  CANVAS                                          ║
+    // ╚══════════════════════════════════════════════════╝
+    const bc = document.getElementById('bc'), bgCtx = bc.getContext('2d');
+    const gc = document.getElementById('gc'), ctx = gc.getContext('2d');
+    const W = 1280, H = 720;
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  WORLD LAYOUT                                    ║
+    // ╚══════════════════════════════════════════════════╝
+    const WORLD_W = 3600;
+    const RIVER_TOP = 310;   // top water surface y
+    const RIVER_BOT = 425;   // bottom water surface y
+    const RIVER_MID = (RIVER_TOP + RIVER_BOT) / 2;
+    const SHORE_TOP = RIVER_TOP - 2;   // top bank (anglers stand here)
+    const SHORE_BOT = RIVER_BOT + 2;   // bottom bank
+    let camX = 0;
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  SLOT SYSTEM: 50 slots, 25 each bank            ║
+    // ╚══════════════════════════════════════════════════╝
+    const MAX_SLOTS = 50;
+    const PER_BANK = 25;
+    const SPC = Math.floor(WORLD_W / PER_BANK); // 144px per slot
+
+    function slotPos(slot) {
+      const isBot = slot >= PER_BANK;
+      const idx = isBot ? slot - PER_BANK : slot;
+      return {
+        wx: 70 + idx * SPC + (isBot ? SPC / 2 : 0), // offset bottom bank to stagger
+        bank: isBot ? 'bot' : 'top',
+        sy: isBot ? SHORE_BOT : SHORE_TOP
+      };
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  AUDIO ENGINE                                    ║
+    // ╚══════════════════════════════════════════════════╝
+    let audioCtx, soundOn = true;
+    function getAC() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playSplash() {
+      if (!soundOn) return;
+      try {
+        const ac = getAC(), osc = ac.createOscillator(), g = ac.createGain();
+        osc.connect(g); g.connect(ac.destination);
+        osc.frequency.setValueAtTime(700, ac.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(60, ac.currentTime + .35);
+        osc.type = 'sine';
+        g.gain.setValueAtTime(.28, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + .35);
+        osc.start(); osc.stop(ac.currentTime + .35);
+        // white noise splash
+        const buf = ac.createBuffer(1, ac.sampleRate * .15, ac.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * .35;
+        const ns = ac.createBufferSource(), ng = ac.createGain();
+        ns.buffer = buf; ns.connect(ng); ng.connect(ac.destination);
+        ng.gain.setValueAtTime(.4, ac.currentTime);
+        ng.gain.exponentialRampToValueAtTime(.001, ac.currentTime + .15);
+        ns.start(ac.currentTime + .02);
+      } catch (e) { }
+    }
+
+    function playCatch(rarity) {
+      if (!soundOn) return;
+      try {
+        const ac = getAC();
+        const freqMap = { COMMON: [523, 659, 784], RARE: [523, 659, 784, 1047], EPIC: [523, 659, 784, 1047, 1319], LEGENDARY: [523, 659, 784, 1047, 1319, 1568], MYTHIC: [523, 659, 784, 1047, 1319, 1568, 2093] };
+        const notes = (freqMap[rarity] || freqMap.COMMON);
+        notes.forEach((f, i) => {
+          const osc = ac.createOscillator(), g = ac.createGain(), dist = ac.createWaveShaper();
+          const curve = new Float32Array(256);
+          for (let j = 0; j < 256; j++) curve[j] = Math.tanh((j / 128 - 1) * 2);
+          dist.curve = curve;
+          osc.connect(dist); dist.connect(g); g.connect(ac.destination);
+          osc.frequency.value = f; osc.type = 'triangle';
+          const t = ac.currentTime + i * .11;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(.35, t + .04);
+          g.gain.exponentialRampToValueAtTime(.001, t + .5);
+          osc.start(t); osc.stop(t + .5);
+        });
+        // bass thud for legendary+
+        if (['LEGENDARY', 'MYTHIC'].includes(rarity)) {
+          const osc = ac.createOscillator(), g = ac.createGain();
+          osc.connect(g); g.connect(ac.destination);
+          osc.frequency.setValueAtTime(80, ac.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(30, ac.currentTime + .5);
+          g.gain.setValueAtTime(.55, ac.currentTime);
+          g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + .5);
+          osc.start(); osc.stop(ac.currentTime + .5);
+        }
+      } catch (e) { }
+    }
+
+    function playReel() {
+      if (!soundOn) return;
+      try {
+        const ac = getAC();
+        for (let i = 0; i < 10; i++) {
+          const osc = ac.createOscillator(), g = ac.createGain();
+          osc.connect(g); g.connect(ac.destination);
+          osc.frequency.value = 400 + i * 30; osc.type = 'square';
+          const t = ac.currentTime + i * .045;
+          g.gain.setValueAtTime(.07, t);
+          g.gain.exponentialRampToValueAtTime(.001, t + .04);
+          osc.start(t); osc.stop(t + .04);
+        }
+      } catch (e) { }
+    }
+
+    function playJoin() {
+      if (!soundOn) return;
+      try {
+        const ac = getAC();
+        [880, 1047].forEach((f, i) => {
+          const osc = ac.createOscillator(), g = ac.createGain();
+          osc.connect(g); g.connect(ac.destination);
+          osc.frequency.value = f; osc.type = 'sine';
+          const t = ac.currentTime + i * .1;
+          g.gain.setValueAtTime(.18, t);
+          g.gain.exponentialRampToValueAtTime(.001, t + .25);
+          osc.start(t); osc.stop(t + .25);
+        });
+      } catch (e) { }
+    }
+
+    function toggleSound() {
+      soundOn = !soundOn;
+      document.getElementById('slbl').textContent = soundOn ? 'BẬT' : 'TẮT';
+      if (soundOn && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // ── TTS Tiếng Việt chuẩn ("Chị Google" Audio Stream) ──
+    let ttsQueue = [], ttsPlaying = false;
+
+    function speak(txt, priority = false) {
+      if (!soundOn) return;
+      if (priority) {
+        ttsQueue.unshift(txt);
+      } else {
+        if (ttsQueue.length >= 4) ttsQueue.splice(1, 1);
+        ttsQueue.push(txt);
+      }
+      processTTS();
+    }
+
+    function processTTS() {
+      if (ttsPlaying || ttsQueue.length === 0) return;
+      ttsPlaying = true;
+      const txt = ttsQueue.shift();
+
+      // Dùng Google Translate TTS qua backend proxy -> giọng Chị Google tiếng Việt 100%
+      const audio = new Audio('/api/tts?text=' + encodeURIComponent(txt));
+      audio.playbackRate = 1.08;
+
+      const finish = () => {
+        ttsPlaying = false;
+        setTimeout(processTTS, 150);
+      };
+
+      audio.onended = finish;
+      audio.onerror = () => {
+        // Fallback qua Web Speech API nếu lỗi
+        if ('speechSynthesis' in window) {
+          try {
+            const u = new SpeechSynthesisUtterance(txt);
+            u.lang = 'vi-VN';
+            u.rate = 1.1;
+            u.onend = finish;
+            u.onerror = finish;
+            speechSynthesis.speak(u);
+            return;
+          } catch (e) { }
+        }
+        finish();
+      };
+
+      audio.play().catch(finish);
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  FISH DATABASE                                   ║
+    // ╚══════════════════════════════════════════════════╝
+    const FISH = [
+      { id: 'tilapia', name: 'Cá Rô Phi', min: .2, max: 1.5, rarity: 'COMMON', col: '#80deea', glow: '#00bcd4', w: { COMMENT: 80, FREE: 50, NORMAL: 30, GOLD: 8, LEGENDARY: 0 } },
+      { id: 'carp', name: 'Cá Chép', min: 1.2, max: 4.5, rarity: 'COMMON', col: '#a5d6a7', glow: '#4caf50', w: { COMMENT: 18, FREE: 30, NORMAL: 35, GOLD: 15, LEGENDARY: 2 } },
+      { id: 'goldfish', name: 'Cá Vàng', min: .4, max: 2.0, rarity: 'RARE', col: '#ffd54f', glow: '#ff8f00', w: { COMMENT: 2, FREE: 12, NORMAL: 18, GOLD: 22, LEGENDARY: 5 } },
+      { id: 'catfish', name: 'Cá Trê', min: 2, max: 8, rarity: 'RARE', col: '#ce93d8', glow: '#9c27b0', w: { COMMENT: 0, FREE: 6, NORMAL: 10, GOLD: 15, LEGENDARY: 5 } },
+      { id: 'bass', name: 'Cá Vược', min: 3, max: 10, rarity: 'RARE', col: '#80cbc4', glow: '#009688', w: { COMMENT: 0, FREE: 2, NORMAL: 7, GOLD: 14, LEGENDARY: 5 } },
+      { id: 'salmon', name: 'Cá Hồi', min: 4, max: 14, rarity: 'EPIC', col: '#ff8a65', glow: '#ff5722', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 12, LEGENDARY: 12 } },
+      { id: 'tuna', name: 'Cá Ngừ', min: 8, max: 25, rarity: 'EPIC', col: '#b0bec5', glow: '#607d8b', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 8, LEGENDARY: 12 } },
+      { id: 'shark', name: 'Cá Mập', min: 15, max: 45, rarity: 'EPIC', col: '#90a4ae', glow: '#455a64', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 6, LEGENDARY: 15 } },
+      { id: 'whale', name: 'Cá Voi', min: 35, max: 90, rarity: 'LEGENDARY', col: '#90caf9', glow: '#1565c0', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 0, LEGENDARY: 20 } },
+      { id: 'kraken', name: 'Thủy Quái', min: 60, max: 150, rarity: 'MYTHIC', col: '#ef9a9a', glow: '#b71c1c', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 0, LEGENDARY: 20 } },
+      { id: 'dragon', name: 'Rồng Biển', min: 100, max: 250, rarity: 'MYTHIC', col: '#c5e1a5', glow: '#558b2f', w: { COMMENT: 0, FREE: 0, NORMAL: 0, GOLD: 0, LEGENDARY: 10 } },
+    ];
+    const RARITY_GLOW = { COMMON: '#00e5ff', RARE: '#aa00ff', EPIC: '#ff6d00', LEGENDARY: '#ffd700', MYTHIC: '#ff1744' };
+
+    function pickFish(tier) {
+      const pool = FISH.filter(f => (f.w[tier] || 0) > 0);
+      const tot = pool.reduce((s, f) => s + (f.w[tier] || 0), 0);
+      let r = Math.random() * tot;
+      for (const f of pool) {
+        r -= (f.w[tier] || 0);
+        if (r <= 0) {
+          let minKg = f.min, maxKg = f.max;
+          if (tier === 'COMMENT') {
+            minKg = 0.15;
+            maxKg = Math.min(f.max, 0.7); // Người chỉ cmt: cá siêu nhỏ 0.15 - 0.7kg
+          }
+          const kg = +(minKg + Math.random() * (maxKg - minKg)).toFixed(2);
+          return { ...f, weight: kg };
+        }
+      }
+      return { ...FISH[0], weight: .25 };
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  SPRITE LOADER                                   ║
+    // ╚══════════════════════════════════════════════════╝
+    const SNAMES = ['fisher_idle', 'fisher_cast', 'fisher_reel',
+      'tilapia', 'carp', 'goldfish', 'catfish', 'bass', 'salmon', 'tuna',
+      'shark', 'whale', 'kraken', 'dragon', 'bobber', 'boat'];
+    const SPR = {};
+    let loaded = 0;
+    for (const n of SNAMES) {
+      const img = new Image();
+      img.src = `assets/sprites/${n}.png`;
+      img.onload = img.onerror = () => loaded++;
+      SPR[n] = img;
+    }
+    function spr(n) { return (SPR[n] && SPR[n].complete && SPR[n].naturalWidth > 0) ? SPR[n] : null }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  BACKGROUND WORLD GENERATION                     ║
+    // ╚══════════════════════════════════════════════════╝
+    // Top shore decorations
+    const TOP_TREES = Array.from({ length: 50 }, () => ({
+      x: Math.random() * WORLD_W,
+      h: 55 + Math.random() * 65, w: 18 + Math.random() * 16,
+      dark: Math.random() < .4, type: Math.floor(Math.random() * 3)
+    }));
+    const BOT_TREES = Array.from({ length: 50 }, () => ({
+      x: Math.random() * WORLD_W,
+      h: 50 + Math.random() * 60, w: 16 + Math.random() * 15,
+      dark: Math.random() < .4, type: Math.floor(Math.random() * 3)
+    }));
+    const CLOUDS = Array.from({ length: 25 }, () => ({
+      x: Math.random() * WORLD_W, y: 30 + Math.random() * 110,
+      w: 90 + Math.random() * 180, h: 28 + Math.random() * 35,
+      spd: .12 + Math.random() * .18, alpha: .5 + Math.random() * .3
+    }));
+    const MTNS = Array.from({ length: 16 }, (_, i) => ({
+      x: i * (WORLD_W / 14) + Math.random() * 180, h: 90 + Math.random() * 130, w: 200 + Math.random() * 200
+    }));
+    const TOP_ROCKS = Array.from({ length: 22 }, () => ({ x: Math.random() * WORLD_W, r: 7 + Math.random() * 14 }));
+    const BOT_ROCKS = Array.from({ length: 22 }, () => ({ x: Math.random() * WORLD_W, r: 7 + Math.random() * 14 }));
+    const LILY = Array.from({ length: 18 }, () => ({ x: Math.random() * WORLD_W, r: 9 + Math.random() * 12, ph: Math.random() * Math.PI * 2, hasFlower: Math.random() < .6 }));
+    const BUBBLES = Array.from({ length: 50 }, () => ({
+      x: Math.random() * WORLD_W, y: RIVER_TOP + 30 + Math.random() * (RIVER_BOT - RIVER_TOP - 50),
+      r: 1.5 + Math.random() * 3.5, spd: 12 + Math.random() * 20, ph: Math.random() * Math.PI * 2
+    }));
+    const AMB = Array.from({ length: 22 }, () => ({
+      id: ['tilapia', 'carp', 'goldfish', 'bass'][Math.floor(Math.random() * 4)],
+      x: Math.random() * WORLD_W,
+      y: RIVER_TOP + 40 + Math.random() * (RIVER_BOT - RIVER_TOP - 80),
+      spd: (.4 + Math.random() * 1.1) * (Math.random() < .5 ? 1 : -1),
+      sc: .5 + Math.random() * .5, al: .3 + Math.random() * .35
+    }));
+
+    // Foreground grass tufts
+    const FG_GRASS = Array.from({ length: 80 }, () => ({
+      x: Math.random() * WORLD_W,
+      y: Math.random() < .5 ? SHORE_TOP - 5 : SHORE_BOT + 5,
+      top: Math.random() < .5
+    }));
+
+    function drawTree(cx, tx, ty, tree, flipped) {
+      const sx = tx - camX;
+      if (sx < -tree.w * 4 || sx > W + tree.w * 4) return;
+      const baseY = flipped ? ty + tree.h : ty;
+      const tipY = flipped ? ty : ty - tree.h;
+      // trunk
+      cx.fillStyle = '#4e342e';
+      cx.fillRect(sx - tree.w * .15, Math.min(baseY, tipY) + tree.h * .4, tree.w * .3, Math.abs(tipY - baseY) * .6);
+      // foliage layers
+      const cols = tree.dark ? ['#1b5e20', '#2e7d32'] : ['#2e7d32', '#43a047'];
+      [[tree.w * .55, 0], [tree.w * .45, -tree.h * .25], [tree.w * .32, -tree.h * .5]].forEach(([r, dy], i) => {
+        cx.beginPath();
+        cx.arc(sx, tipY + dy * (flipped ? -1 : 1), r, 0, Math.PI * 2);
+        cx.fillStyle = cols[i % 2];
+        cx.fill();
+      });
+    }
+
+    function drawBackground(t) {
+      bgCtx.clearRect(0, 0, W, H);
+
+      // 1. Sky gradient
+      const sky = bgCtx.createLinearGradient(0, 0, 0, RIVER_TOP);
+      sky.addColorStop(0, '#07101f');
+      sky.addColorStop(.3, '#0d2240');
+      sky.addColorStop(.65, '#0e3d60');
+      sky.addColorStop(1, '#1a5578');
+      bgCtx.fillStyle = sky; bgCtx.fillRect(0, 0, W, RIVER_TOP);
+
+      // 2. Sun glow
+      const sun = bgCtx.createRadialGradient(W * .8, 55, 0, W * .8, 55, 140);
+      sun.addColorStop(0, 'rgba(255,230,120,.4)');
+      sun.addColorStop(.4, 'rgba(255,170,60,.12)');
+      sun.addColorStop(1, 'transparent');
+      bgCtx.fillStyle = sun; bgCtx.fillRect(0, 0, W, RIVER_TOP);
+      bgCtx.beginPath(); bgCtx.arc(W * .8, 55, 30, 0, Math.PI * 2);
+      bgCtx.fillStyle = '#ffe57f'; bgCtx.fill();
+
+      // 3. Stars
+      bgCtx.fillStyle = 'rgba(255,255,255,.7)';
+      [[80, 20], [160, 45], [320, 15], [510, 55], [700, 25], [950, 40], [1100, 18], [200, 80], [450, 70]].forEach(([sx, sy]) => {
+        bgCtx.beginPath(); bgCtx.arc(sx, sy, 1, 0, Math.PI * 2); bgCtx.fill();
+      });
+
+      // 4. Clouds
+      for (const c of CLOUDS) {
+        const cx = ((c.x + t * c.spd * 18) % WORLD_W);
+        const sx = cx - camX * .08;
+        if (sx < -c.w * 2 || sx > W + c.w * 2) continue;
+        bgCtx.save(); bgCtx.globalAlpha = c.alpha * .7;
+        bgCtx.beginPath(); bgCtx.ellipse(sx, c.y, c.w, c.h, 0, 0, Math.PI * 2);
+        bgCtx.fillStyle = '#b2d8f0'; bgCtx.fill(); bgCtx.restore();
+      }
+
+      // 5. Mountains
+      bgCtx.save(); bgCtx.globalAlpha = .6;
+      for (const m of MTNS) {
+        const sx = m.x - camX * .22;
+        if (sx < -m.w || sx > W + m.w) continue;
+        bgCtx.beginPath();
+        bgCtx.moveTo(sx - m.w / 2, RIVER_TOP - 15);
+        bgCtx.lineTo(sx, RIVER_TOP - 15 - m.h);
+        bgCtx.lineTo(sx + m.w / 2, RIVER_TOP - 15);
+        bgCtx.closePath();
+        const mg = bgCtx.createLinearGradient(sx, RIVER_TOP - 15 - m.h, sx, RIVER_TOP - 15);
+        mg.addColorStop(0, '#1a4a6b'); mg.addColorStop(1, '#0a2d40');
+        bgCtx.fillStyle = mg; bgCtx.fill();
+        // Snow cap
+        bgCtx.beginPath();
+        bgCtx.moveTo(sx - m.w * .15, RIVER_TOP - 15 - m.h * .7);
+        bgCtx.lineTo(sx, RIVER_TOP - 15 - m.h);
+        bgCtx.lineTo(sx + m.w * .15, RIVER_TOP - 15 - m.h * .7);
+        bgCtx.fillStyle = 'rgba(220,240,255,.35)'; bgCtx.fill();
+      }
+      bgCtx.restore();
+
+      // 6. TOP bank strip
+      const tb = bgCtx.createLinearGradient(0, RIVER_TOP - 45, 0, RIVER_TOP);
+      tb.addColorStop(0, '#2d5016'); tb.addColorStop(.6, '#3d6b1c'); tb.addColorStop(1, '#1a3a0a');
+      bgCtx.fillStyle = tb; bgCtx.fillRect(0, RIVER_TOP - 45, W, 45);
+
+      // 7. BOTTOM bank strip
+      const bb = bgCtx.createLinearGradient(0, RIVER_BOT, 0, RIVER_BOT + 180);
+      bb.addColorStop(0, '#1a3a0a'); bb.addColorStop(.4, '#3d6b1c'); bb.addColorStop(1, '#2d5016');
+      bgCtx.fillStyle = bb; bgCtx.fillRect(0, RIVER_BOT, W, 180);
+
+      // 8. Bottom sky/background (below river)
+      const bsky = bgCtx.createLinearGradient(0, RIVER_BOT + 180, 0, H);
+      bsky.addColorStop(0, '#2d5016'); bsky.addColorStop(1, '#1a2d0a');
+      bgCtx.fillStyle = bsky; bgCtx.fillRect(0, RIVER_BOT + 180, W, H - RIVER_BOT - 180);
+
+      // 9. RIVER body
+      const rg = bgCtx.createLinearGradient(0, RIVER_TOP, 0, RIVER_BOT);
+      rg.addColorStop(0, '#1565c0'); rg.addColorStop(.3, '#1976d2'); rg.addColorStop(.7, '#0d47a1'); rg.addColorStop(1, '#0a3080');
+      bgCtx.fillStyle = rg; bgCtx.fillRect(0, RIVER_TOP, W, RIVER_BOT - RIVER_TOP);
+
+      // 10. River shimmer strips (depth)
+      for (let i = 0; i < 5; i++) {
+        const ry = RIVER_TOP + 10 + i * 18;
+        bgCtx.save(); bgCtx.globalAlpha = .08 - i * .012;
+        bgCtx.fillStyle = '#90caf9'; bgCtx.fillRect(0, ry, W, 8); bgCtx.restore();
+      }
+
+      // 11. Wave lines (animated)
+      for (let i = 0; i < 6; i++) {
+        const wy = RIVER_TOP + i * 18;
+        bgCtx.beginPath();
+        for (let x = 0; x <= W; x += 3) {
+          const wx = x + camX * .05;
+          const y = wy + Math.sin(wx / 70 + t * 1.6 + i) * .4 * 4 + Math.sin(wx / 35 + t * 2.3 + i * .8) * .4 * 2;
+          x === 0 ? bgCtx.moveTo(x, y) : bgCtx.lineTo(x, y);
+        }
+        bgCtx.strokeStyle = `rgba(130,210,255,${.14 - i * .018})`; bgCtx.lineWidth = 1.4; bgCtx.stroke();
+      }
+
+      // 12. River surface glow
+      const rsg = bgCtx.createLinearGradient(0, RIVER_TOP, 0, RIVER_TOP + 40);
+      rsg.addColorStop(0, 'rgba(100,180,255,.22)'); rsg.addColorStop(1, 'transparent');
+      bgCtx.fillStyle = rsg; bgCtx.fillRect(0, RIVER_TOP, W, 40);
+      const rbg = bgCtx.createLinearGradient(0, RIVER_BOT - 30, 0, RIVER_BOT);
+      rbg.addColorStop(0, 'transparent'); rbg.addColorStop(1, 'rgba(80,150,255,.18)');
+      bgCtx.fillStyle = rbg; bgCtx.fillRect(0, RIVER_BOT - 30, W, 30);
+
+      // 13. Lily pads in river center
+      for (const lp of LILY) {
+        const sx = lp.x - camX;
+        if (sx < -40 || sx > W + 40) continue;
+        const ly = RIVER_MID - 10 + Math.sin(t * .7 + lp.ph) * 3;
+        bgCtx.save(); bgCtx.globalAlpha = .85;
+        bgCtx.beginPath(); bgCtx.ellipse(sx, ly, lp.r, lp.r * .5, 0, 0, Math.PI * 2);
+        bgCtx.fillStyle = '#2e7d32'; bgCtx.fill();
+        if (lp.hasFlower) {
+          bgCtx.beginPath(); bgCtx.arc(sx, ly - lp.r * .2, lp.r * .28, 0, Math.PI * 2);
+          bgCtx.fillStyle = '#f48fb1'; bgCtx.fill();
+          bgCtx.beginPath(); bgCtx.arc(sx, ly - lp.r * .2, lp.r * .12, 0, Math.PI * 2);
+          bgCtx.fillStyle = '#fff176'; bgCtx.fill();
+        }
+        bgCtx.restore();
+      }
+
+      // 14. Bubbles
+      for (const b of BUBBLES) {
+        b.y -= b.spd * .016;
+        if (b.y < RIVER_TOP + 8) b.y = RIVER_BOT - 15;
+        const sx = b.x - camX;
+        if (sx < -15 || sx > W + 15) continue;
+        const bx = sx + Math.sin(t * .9 + b.ph) * 5;
+        bgCtx.beginPath(); bgCtx.arc(bx, b.y, b.r, 0, Math.PI * 2);
+        bgCtx.strokeStyle = 'rgba(160,230,255,.28)'; bgCtx.lineWidth = .9; bgCtx.stroke();
+      }
+
+      // 15. Top trees (parallax .55x)
+      for (const tree of TOP_TREES) drawTree(bgCtx, tree.x - camX * .55, tree.x - camX * .55, SHORE_TOP - 2, tree, false);
+      for (const rock of TOP_ROCKS) {
+        const sx = rock.x - camX * .8;
+        if (sx < -50 || sx > W + 50) continue;
+        bgCtx.beginPath(); bgCtx.ellipse(sx, SHORE_TOP - 2, rock.r * 1.4, rock.r * .7, 0, 0, Math.PI * 2);
+        bgCtx.fillStyle = '#546e7a'; bgCtx.fill();
+      }
+
+      // 16. Bottom trees (parallax .6x, flipped)
+      for (const tree of BOT_TREES) drawTree(bgCtx, tree.x - camX * .6, tree.x - camX * .6, SHORE_BOT + 5, tree, true);
+      for (const rock of BOT_ROCKS) {
+        const sx = rock.x - camX * .82;
+        if (sx < -50 || sx > W + 50) continue;
+        bgCtx.beginPath(); bgCtx.ellipse(sx, SHORE_BOT + 4, rock.r * 1.4, rock.r * .7, 0, 0, Math.PI * 2);
+        bgCtx.fillStyle = '#546e7a'; bgCtx.fill();
+      }
+
+      // 17. Ambient fish
+      for (const f of AMB) {
+        f.x += f.spd * .5;
+        if (f.x > WORLD_W + 80) f.x = -80;
+        if (f.x < -80) f.x = WORLD_W + 80;
+        const sx = f.x - camX;
+        if (sx < -60 || sx > W + 60) continue;
+        const img = spr(f.id);
+        if (!img) continue;
+        bgCtx.save(); bgCtx.globalAlpha = f.al;
+        const fw = 38 * f.sc, fh = 22 * f.sc;
+        if (f.spd < 0) { bgCtx.translate(sx, f.y); bgCtx.scale(-1, 1); bgCtx.drawImage(img, -fw / 2, -fh / 2, fw, fh); }
+        else bgCtx.drawImage(img, sx - fw / 2, f.y - fh / 2, fw, fh);
+        bgCtx.restore();
+      }
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  GAME STATE                                      ║
+    // ╚══════════════════════════════════════════════════╝
+    const castQueue = [], activeAnglers = [];
+    const scores = new Map(), particles = [];
+    let record = { kg: 0, name: '' };
+
+    function allocSlot() {
+      const used = new Set(activeAnglers.map(a => a.slot));
+      for (let s = 0; s < MAX_SLOTS; s++) if (!used.has(s)) return s;
+      return -1;
+    }
+
+    function spawnFromQueue() {
+      while (activeAnglers.length < MAX_SLOTS && castQueue.length > 0) {
+        const slot = allocSlot();
+        if (slot === -1) break;
+        const job = castQueue.shift();
+        const { wx, bank, sy } = slotPos(slot);
+
+        const isVip = (job.vipCasts || 0) > 0;
+        const currentTier = isVip ? job.vipTier : (job.baitTier || 'COMMENT');
+        const fish = pickFish(currentTier);
+        const targetDepth = bank === 'top'
+          ? RIVER_TOP + 25 + Math.random() * (RIVER_BOT - RIVER_TOP - 50)
+          : RIVER_BOT - 25 - Math.random() * (RIVER_BOT - RIVER_TOP - 50);
+
+        // Người chỉ cmt: chờ 8 - 14 giây mới cắn cá nhỏ. Tặng quà VIP: chỉ 1.2 - 2.5 giây là cắn ngay!
+        const waitDuration = isVip ? (1.2 + Math.random() * 1.5) : (8.0 + Math.random() * 6.0);
+
+        activeAnglers.push({
+          ...job,
+          slot, wx, bank, sy,
+          hookY: bank === 'top' ? RIVER_TOP + 8 : RIVER_BOT - 8,
+          targetDepth,
+          state: 'CASTING', timer: 0,
+          waitDuration,
+          caughtFish: fish,
+          currentTier,
+          isPermanent: job.isPermanent !== false, // Cmt vào câu là vĩnh viễn không biến mất!
+          vipCasts: job.vipCasts || 0,
+          vipTier: job.vipTier || 'NORMAL',
+          bobPh: Math.random() * Math.PI * 2
+        });
+
+        // sound + voice
+        playJoin();
+        if (isVip) {
+          speak(`Chào cần thủ VIP ${job.nickname} đã vào đài!`, true);
+        } else {
+          speak(`Chào ${job.nickname} đã vào câu!`);
+        }
+        // join popup
+        spawnJoinPopup(wx, sy, job.nickname, bank);
+        updateQueueUI();
+      }
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  UPDATE                                          ║
+    // ╚══════════════════════════════════════════════════╝
+    function update(dt) {
+      spawnFromQueue();
+
+      // Camera follows anglers
+      if (activeAnglers.length > 0) {
+        const cx = activeAnglers.reduce((s, a) => s + a.wx, 0) / activeAnglers.length;
+        const tgt = Math.max(0, Math.min(WORLD_W - W, cx - W / 2));
+        camX += (tgt - camX) * 2.2 * dt;
+      }
+
+      for (let i = activeAnglers.length - 1; i >= 0; i--) {
+        const a = activeAnglers[i];
+        a.timer += dt;
+        if (a.state === 'CASTING') {
+          if (a.bank === 'top') a.hookY = Math.min(a.hookY + 300 * dt, a.targetDepth);
+          else a.hookY = Math.max(a.hookY - 300 * dt, a.targetDepth);
+          if ((a.bank === 'top' && a.hookY >= a.targetDepth) || (a.bank === 'bot' && a.hookY <= a.targetDepth)) {
+            a.hookY = a.targetDepth; a.state = 'WAITING'; a.timer = 0;
+            playSplash();
+          }
+        } else if (a.state === 'WAITING') {
+          // Đợi hết thời gian cắn câu
+          if (a.timer >= a.waitDuration) { a.state = 'REELING'; a.timer = 0; playReel(); }
+        } else if (a.state === 'REELING') {
+          if (a.bank === 'top') a.hookY = Math.max(a.hookY - 320 * dt, RIVER_TOP + 6);
+          else a.hookY = Math.min(a.hookY + 320 * dt, RIVER_BOT - 6);
+          if ((a.bank === 'top' && a.hookY <= RIVER_TOP + 6) || (a.bank === 'bot' && a.hookY >= RIVER_BOT - 6)) {
+            a.state = 'DONE'; a.timer = 0;
+            // score
+            const prev = scores.get(a.userId) || { nickname: a.nickname, totalKg: 0 };
+            prev.totalKg = +(prev.totalKg + a.caughtFish.weight).toFixed(2);
+            scores.set(a.userId, prev);
+            updateLeaderboard();
+            // record
+            if (a.caughtFish.weight > record.kg) { record = { kg: a.caughtFish.weight, name: a.nickname }; updateRecord(); }
+            // particles
+            const sx = a.wx - camX, sy2 = a.bank === 'top' ? RIVER_TOP : RIVER_BOT;
+            spawnParticles(sx, sy2, a.caughtFish.rarity);
+            spawnFishPopup(sx, sy2 - 30, a.caughtFish, a.bank);
+            // audio
+            playCatch(a.caughtFish.rarity);
+            // voice
+            if (['EPIC', 'LEGENDARY', 'MYTHIC'].includes(a.caughtFish.rarity)) {
+              speak(`Đỉnh nóc kịch trần! ${a.nickname} câu dính ${a.caughtFish.name} ${a.caughtFish.weight} ký!`, true);
+              showBanner(`🔥 ${a.nickname} câu được ${a.caughtFish.name} ${a.caughtFish.weight}kg!`);
+            } else {
+              speak(`${a.nickname} dính ${a.caughtFish.name} ${a.caughtFish.weight} ký`);
+            }
+          }
+        } else if (a.state === 'DONE') {
+          if (a.timer >= 1.8) {
+            if (a.isPermanent) {
+              // KHÔNG BIẾN MẤT - TỰ ĐỘNG THẢ CẦN LẠI VĨNH VIỄN!
+              if (a.vipCasts > 0) {
+                a.vipCasts--;
+                a.currentTier = a.vipTier;
+                a.waitDuration = 1.2 + Math.random() * 1.5; // Cắn nhanh
+              } else {
+                a.currentTier = 'COMMENT';
+                a.waitDuration = 8.0 + Math.random() * 6.0; // Chỉ cmt: cắn chậm (8 - 14s)
+              }
+              a.caughtFish = pickFish(a.currentTier);
+              a.hookY = a.bank === 'top' ? RIVER_TOP + 8 : RIVER_BOT - 8;
+              a.state = 'CASTING';
+              a.timer = 0;
+            } else {
+              activeAnglers.splice(i, 1);
+            }
+          }
+        }
+      }
+
+      // particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 200 * dt;
+        p.life -= dt; p.alpha = Math.max(0, p.life / p.maxLife);
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  DRAW GAME                                       ║
+    // ╚══════════════════════════════════════════════════╝
+    function drawGame(t) {
+      ctx.clearRect(0, 0, W, H);
+
+      for (const a of activeAnglers) {
+        const sx = a.wx - camX;
+        if (sx < -80 || sx > W + 80) continue;
+
+        const isTop = a.bank === 'top';
+        const charY = isTop ? SHORE_TOP - 2 : SHORE_BOT + 2;
+
+        // tier colors
+        const isVip = (a.vipCasts || 0) > 0;
+        const lc = (a.currentTier === 'LEGENDARY' || a.vipTier === 'LEGENDARY') ? '#ff5252'
+          : (a.currentTier === 'GOLD' || a.vipTier === 'GOLD' || isVip) ? '#ffd54f'
+            : '#81d4fa';
+
+        // fishing line (curved)
+        const bobOff = a.state === 'WAITING' ? Math.sin(t * 20 + a.bobPh) * 5 : 0;
+        const rodTipX = sx + (isTop ? 16 : -16);
+        const rodTipY = isTop ? charY - 18 : charY + 18;
+        ctx.save();
+        ctx.strokeStyle = lc; ctx.lineWidth = isVip ? 2.2 : 1.6;
+        ctx.shadowColor = lc; ctx.shadowBlur = isVip ? 12 : 2;
+        ctx.beginPath();
+        ctx.moveTo(rodTipX, rodTipY);
+        const mx = (rodTipX + sx + bobOff) / 2;
+        const my = (rodTipY + a.hookY) / 2 + (isTop ? -20 : 20);
+        ctx.quadraticCurveTo(mx, my, sx + bobOff, a.hookY);
+        ctx.stroke(); ctx.restore();
+
+        // bobber / fish at hook
+        if (a.state === 'REELING' || a.state === 'DONE') {
+          const fi = spr(a.caughtFish.id);
+          const rar = a.caughtFish.rarity;
+          const fw = 52 + (rar === 'MYTHIC' ? 28 : rar === 'LEGENDARY' ? 18 : rar === 'EPIC' ? 8 : 0);
+          const fh = fw * .58;
+          ctx.save();
+          ctx.shadowColor = RARITY_GLOW[rar] || '#fff'; ctx.shadowBlur = 24;
+          if (!isTop) {
+            ctx.translate(sx + bobOff, a.hookY); ctx.scale(1, -1);
+            fi ? ctx.drawImage(fi, -fw / 2, -fh / 2, fw, fh) : drawEmoFish(ctx, 0, 0, rar);
+            ctx.restore();
+          }
+          else {
+            if (fi) ctx.drawImage(fi, sx + bobOff - fw / 2, a.hookY - fh / 2, fw, fh);
+            else drawEmoFish(ctx, sx + bobOff, a.hookY, rar);
+            ctx.restore();
+          }
+          if (a.state === 'DONE') {
+            ctx.save();
+            ctx.font = 'bold 13px Nunito,sans-serif'; ctx.textAlign = 'center';
+            ctx.fillStyle = a.caughtFish.col; ctx.shadowColor = '#000'; ctx.shadowBlur = 5;
+            ctx.fillText(`+${a.caughtFish.weight}kg`, sx + bobOff, isTop ? a.hookY - 26 : a.hookY + 30);
+            ctx.restore();
+          }
+        } else {
+          // bobber
+          const bi = spr('bobber');
+          if (bi) ctx.drawImage(bi, sx + bobOff - 6, a.hookY - 6, 12, 12);
+          else {
+            ctx.beginPath(); ctx.arc(sx + bobOff, a.hookY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff1744'; ctx.fill();
+            ctx.beginPath(); ctx.arc(sx + bobOff, a.hookY - 2, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
+          }
+        }
+
+        // fisher character sprite
+        const spk = a.state === 'CASTING' ? 'fisher_cast' : a.state === 'REELING' || a.state === 'DONE' ? 'fisher_reel' : 'fisher_idle';
+        const fi2 = spr(spk);
+        const cw = 42, ch = 52;
+        if (fi2) {
+          if (isTop) {
+            ctx.drawImage(fi2, sx - cw / 2, charY - ch, cw, ch);
+          } else {
+            ctx.save(); ctx.translate(sx, charY + ch); ctx.scale(1, -1);
+            ctx.drawImage(fi2, -cw / 2, 0, cw, ch); ctx.restore();
+          }
+        } else {
+          ctx.font = '28px serif'; ctx.textAlign = 'center';
+          ctx.fillText(isTop ? '🧍' : '🧍', sx, isTop ? charY - 4 : charY + 4);
+        }
+
+        // name tag
+        ctx.save();
+        const name2 = a.nickname.length > 12 ? a.nickname.slice(0, 12) + '…' : a.nickname;
+        ctx.font = 'bold 10.5px Nunito,sans-serif'; ctx.textAlign = 'center';
+        const tw = ctx.measureText(name2).width;
+        const tagX = sx, tagY = isTop ? charY - ch - 4 : charY + ch + 16;
+        // tier badge color
+        const bc2 = (a.vipCasts > 0)
+          ? 'rgba(255,160,0,.92)'
+          : 'rgba(20,70,130,.78)';
+        ctx.fillStyle = bc2;
+        ctx.beginPath(); roundRect2(ctx, tagX - tw / 2 - 7, tagY - 13, tw + 14, 16, 5); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 3;
+        ctx.fillText(name2, tagX, tagY);
+
+        // Vương miện VIP nếu có lượt quà
+        if (a.vipCasts > 0) {
+          ctx.font = 'bold 9.5px Nunito,sans-serif';
+          ctx.fillStyle = '#ffe082';
+          ctx.fillText(`👑 VIP x${a.vipCasts}`, tagX, isTop ? tagY - 15 : tagY + 15);
+        }
+        ctx.restore();
+      }
+
+      // particles
+      for (const p of particles) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Queue count overlay at water surface
+      if (castQueue.length > 0) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath();
+        roundRect2(ctx, W / 2 - 100, RIVER_MID - 13, 200, 26, 13); ctx.fill();
+        ctx.font = 'bold 12px Nunito,sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffd54f';
+        ctx.fillText(`⏳ Hàng đợi: ${castQueue.length} lượt`, W / 2, RIVER_MID + 4);
+        ctx.restore();
+      }
+    }
+
+    function drawEmoFish(cx, x, y, rarity) {
+      const e = rarity === 'MYTHIC' ? '🐙' : rarity === 'LEGENDARY' ? '🐳' : rarity === 'EPIC' ? '🦈' : '🐟';
+      cx.font = '28px serif'; cx.textAlign = 'center'; cx.fillText(e, x, y + 8);
+    }
+
+    function roundRect2(cx, x, y, w, h, r) {
+      if (cx.roundRect) { cx.roundRect(x, y, w, h, r); return; }
+      cx.beginPath();
+      cx.moveTo(x + r, y); cx.lineTo(x + w - r, y); cx.quadraticCurveTo(x + w, y, x + w, y + r);
+      cx.lineTo(x + w, y + h - r); cx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      cx.lineTo(x + r, y + h); cx.quadraticCurveTo(x, y + h, x, y + h - r);
+      cx.lineTo(x, y + r); cx.quadraticCurveTo(x, y, x + r, y); cx.closePath();
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  EFFECTS                                         ║
+    // ╚══════════════════════════════════════════════════╝
+    function spawnParticles(sx, sy, rarity) {
+      const cols = { COMMON: ['#80deea', '#4dd0e1', '#fff'], RARE: ['#ce93d8', '#ba68c8', '#e1bee7'], EPIC: ['#ff8a65', '#ff5722', '#ffd180'], LEGENDARY: ['#ffd54f', '#ffca28', '#fff9c4'], MYTHIC: ['#ff5252', '#ff1744', '#ff8a80'] };
+      const p = cols[rarity] || cols.COMMON;
+      const n = rarity === 'MYTHIC' ? 35 : rarity === 'LEGENDARY' ? 25 : rarity === 'EPIC' ? 18 : 12;
+      for (let i = 0; i < n; i++) {
+        const ang = Math.random() * Math.PI * 2, spd = 90 + Math.random() * 190;
+        particles.push({ x: sx, y: sy, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 80, r: 2.5 + Math.random() * 4.5, color: p[Math.floor(Math.random() * p.length)], life: .7 + Math.random() * .6, maxLife: 1.3, alpha: 1 });
+      }
+    }
+
+    function spawnFishPopup(sx, sy, fish, bank) {
+      const el = document.createElement('div');
+      el.className = 'fpop';
+      el.style.left = sx + 'px'; el.style.top = sy + 'px';
+      el.style.color = fish.col;
+      el.textContent = `🐟 ${fish.name} +${fish.weight}kg`;
+      if (bank === 'bot') el.style.transform = 'scaleY(-1)';
+      document.getElementById('ui').appendChild(el);
+      setTimeout(() => el.remove(), 2100);
+    }
+
+    function spawnJoinPopup(wx, sy, name, bank) {
+      const sx = wx - camX;
+      const el = document.createElement('div');
+      el.className = 'jpop';
+      el.style.left = sx + 'px';
+      el.style.top = (bank === 'top' ? sy - 70 : sy + 30) + 'px';
+      el.textContent = `🎣 ${name.slice(0, 10)} vào câu!`;
+      document.getElementById('ui').appendChild(el);
+      setTimeout(() => el.remove(), 2300);
+    }
+
+    function showBanner(txt) {
+      const el = document.getElementById('banner');
+      el.textContent = txt; el.classList.add('show');
+      clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3400);
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  UI UPDATES                                      ║
+    // ╚══════════════════════════════════════════════════╝
+    function updateLeaderboard() {
+      const sorted = [...scores.values()].sort((a, b) => b.totalKg - a.totalKg).slice(0, 8);
+      const medals = ['🥇', '🥈', '🥉', '4', '5', '6', '7', '8'];
+      document.getElementById('lbl').innerHTML = sorted.map((it, i) => `
+    <div class="lr">
+      <span class="lr-rank">${medals[i] || i + 1}</span>
+      <span class="lr-name">${it.nickname}</span>
+      <span class="lr-kg">${it.totalKg.toFixed(1)} kg</span>
+    </div>`).join('') || '<div class="lr"><span class="lr-name" style="color:#333">Chưa có...</span></div>';
+    }
+
+    function updateRecord() {
+      document.getElementById('rv').textContent = record.kg + ' kg';
+      document.getElementById('rs').textContent = record.name ? `📌 ${record.name}` : '';
+    }
+
+    function updateQueueUI() {
+      const qt = document.getElementById('qtick');
+      if (castQueue.length > 0) {
+        qt.style.display = 'block';
+        document.getElementById('qcnt').textContent = castQueue.length;
+        const names = castQueue.slice(0, 5).map(j => j.nickname).join(', ');
+        document.getElementById('qnames').textContent = castQueue.length > 5 ? names + `...+${castQueue.length - 5}` : names;
+      } else qt.style.display = 'none';
+    }
+
+    function handleCommentJoin(d) {
+      const userId = d.userId || d.nickname;
+      const nickname = d.nickname || 'Cần thủ';
+
+      // Nếu người này đã có mặt trên sông, chỉ chào lại mà không tạo thêm
+      const existing = activeAnglers.find(a => a.userId === userId || a.nickname.toLowerCase() === nickname.toLowerCase());
+      if (existing) {
+        spawnJoinPopup(existing.wx, existing.sy, `🎣 ${existing.nickname} đang câu!`, existing.bank);
+        return;
+      }
+      // Nếu đã ở hàng đợi
+      if (castQueue.some(q => q.userId === userId || q.nickname.toLowerCase() === nickname.toLowerCase())) {
+        return;
+      }
+
+      // Vào hàng đợi hoặc vào câu vĩnh viễn
+      castQueue.push({
+        userId,
+        nickname,
+        baitTier: 'COMMENT',
+        isPermanent: true,
+        vipCasts: 0,
+        vipTier: 'NORMAL'
+      });
+      updateQueueUI();
+    }
+
+    function handleGift(d) {
+      const userId = d.userId || d.nickname;
+      const nickname = d.nickname || 'Cần thủ VIP';
+      const tier = d.baitTier || 'GOLD';
+      const buffCasts = (d.casts || 1) * 3;
+
+      const existing = activeAnglers.find(a => a.userId === userId || a.nickname.toLowerCase() === nickname.toLowerCase());
+      if (existing) {
+        // Buff cho cần thủ đang câu trên sông: nhận thêm lượt VIP, đổi sang mồi xịn
+        existing.vipCasts += buffCasts;
+        existing.vipTier = tier;
+        existing.currentTier = tier;
+        existing.caughtFish = pickFish(tier);
+        // Tăng tốc cắn câu ngay lập tức!
+        existing.waitDuration = 1.2 + Math.random() * 1.5;
+        if (existing.state === 'WAITING') {
+          existing.timer = Math.max(existing.timer, existing.waitDuration - 0.4);
+        }
+        speak(`Cảm ơn ${existing.nickname} tặng ${d.giftName || 'quà'}, nhận ${buffCasts} lượt mồi ${tier}!`, true);
+        spawnJoinPopup(existing.wx, existing.sy, `⭐ +${buffCasts} MỒI ${tier}!`, existing.bank);
+      } else {
+        // Nếu chưa ở trên sông, ưu tiên vào đầu hàng đợi với mồi VIP
+        castQueue.unshift({
+          userId,
+          nickname,
+          baitTier: tier,
+          isPermanent: true,
+          vipCasts: buffCasts,
+          vipTier: tier
+        });
+        speak(`Cảm ơn ${nickname} tặng ${d.giftName || 'quà'} vào đài VIP!`, true);
+        updateQueueUI();
+      }
+    }
+
+    // Xử lý sự kiện thả 100 tim -> Tăng tốc độ câu!
+    function handleLikeBoost(d) {
+      const userId = d.userId || d.nickname;
+      const nickname = d.nickname || 'Cần thủ';
+
+      const existing = activeAnglers.find(a => a.userId === userId || a.nickname.toLowerCase() === nickname.toLowerCase());
+      if (existing) {
+        // Tăng tốc: thêm 2 lượt cắn siêu nhanh (5-7s)
+        existing.vipCasts = Math.max(existing.vipCasts, 0) + 2;
+        if (existing.vipTier !== '50XU' && existing.vipTier !== '10XU') {
+          existing.vipTier = '5XU';
+          existing.currentTier = '5XU';
+        }
+        existing.waitDuration = getWaitDuration('5XU');
+        if (existing.state === 'WAITING') {
+          existing.timer = Math.max(existing.timer, existing.waitDuration - 0.4); // Cắn ngay!
+        }
+        spawnJoinPopup(existing.wx, existing.sy, `❤️ 100 Tim: Tăng Tốc Câu!`, existing.bank);
+        speak(`Cảm ơn ${existing.nickname} thả 100 tim, tăng tốc độ câu!`);
+      } else {
+        // Nếu chưa ở trên đài câu, vào đài câu với buff tăng tốc
+        castQueue.unshift({
+          userId,
+          nickname,
+          baitTier: '5XU',
+          isPermanent: true,
+          vipCasts: 2,
+          vipTier: '5XU'
+        });
+        speak(`Cảm ơn ${nickname} thả 100 tim vào câu siêu tốc!`);
+        updateQueueUI();
+      }
+    }
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  MAIN LOOP                                       ║
+    // ╚══════════════════════════════════════════════════╝
+    let last = performance.now(), T = 0;
+    (function loop(now) {
+      const dt = Math.min((now - last) / 1000, .05);
+      last = now; T += dt;
+      drawBackground(T);
+      update(dt);
+      drawGame(T);
+      requestAnimationFrame(loop);
+    })(performance.now());
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  WEBSOCKET                                       ║
+    // ╚══════════════════════════════════════════════════╝
+    const ws = new WebSocket(`ws://${location.host}`);
+    ws.onmessage = e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.type === 'JOIN_COMMENT') handleCommentJoin(d);
+        else if (d.type === 'GIFT_CAST') handleGift(d);
+        else if (d.type === 'LIKE_BOOST') handleLikeBoost(d);
+      } catch (err) { }
+    };
+    ws.onerror = () => { };
+
+    // ╔══════════════════════════════════════════════════╗
+    // ║  DEV SIMULATION                                  ║
+    // ╚══════════════════════════════════════════════════╝
+    const NAMES = ['MinhAnh99', 'HoangNam_Pro', 'ThaoVy_VN', 'DaiCaPro', 'MeoCon2k', 'TuanKiet', 'BaoBich', 'LinhLinh', 'PhuocRom80', 'CuTeo_XL', 'AnhDung', 'QuynhNga', 'MinhTam', 'VietHung', 'KimAnh', 'DuyHoa', 'HuynhMai', 'HaiDang', 'YenNhi', 'CongHau'];
+
+    function simComment() {
+      if (!audioCtx || audioCtx.state === 'suspended') getAC().resume?.();
+      const name = NAMES[Math.floor(Math.random() * NAMES.length)] + '_' + Math.floor(Math.random() * 90 + 10);
+      handleCommentJoin({ userId: name, nickname: name });
+    }
+
+    function simLikeBoost() {
+      if (!audioCtx || audioCtx.state === 'suspended') getAC().resume?.();
+      if (activeAnglers.length > 0) {
+        const target = activeAnglers[Math.floor(Math.random() * activeAnglers.length)];
+        handleLikeBoost({ userId: target.userId, nickname: target.nickname, likeCount: 100 });
+      } else {
+        const name = NAMES[Math.floor(Math.random() * NAMES.length)];
+        handleLikeBoost({ userId: name, nickname: name, likeCount: 100 });
+      }
+    }
+
+    function sim10() {
+      if (!audioCtx || audioCtx.state === 'suspended') getAC().resume?.();
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+          const name = NAMES[Math.floor(Math.random() * NAMES.length)] + '_' + Math.floor(Math.random() * 900 + 100);
+          handleCommentJoin({ userId: name, nickname: name });
+        }, i * 180);
+      }
+    }
+
+    function simGift(tier) {
+      if (!audioCtx || audioCtx.state === 'suspended') getAC().resume?.();
+      // Nếu đã có cần thủ trên sông thì buff ngẫu nhiên 1 người
+      if (activeAnglers.length > 0) {
+        const target = activeAnglers[Math.floor(Math.random() * activeAnglers.length)];
+        handleGift({
+          userId: target.userId,
+          nickname: target.nickname,
+          baitTier: tier,
+          casts: tier === 'LEGENDARY' ? 4 : 2,
+          giftName: tier === 'LEGENDARY' ? 'Vương Miện' : 'Hoa Hồng'
+        });
+      } else {
+        // Nếu chưa có ai thì tặng cho người mới
+        const name = NAMES[Math.floor(Math.random() * NAMES.length)];
+        handleGift({
+          userId: name,
+          nickname: name,
+          baitTier: tier,
+          casts: tier === 'LEGENDARY' ? 4 : 2,
+          giftName: tier === 'LEGENDARY' ? 'Vương Miện' : 'Hoa Hồng'
+        });
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.key.toLowerCase() === 'h') {
+        const p = document.getElementById('dev');
+        p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+      }
+    });
+  </script>
+</body>
+
+</html>

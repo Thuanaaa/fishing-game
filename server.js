@@ -25,8 +25,14 @@ app.get('/api/tts', (req, res) => {
   });
 });
 
-// Thay bằng username TikTok Live của bạn (không có @)
-const TIKTOK_USERNAME = 'cain_von_silford_0';
+// Username có thể đặt qua TIKTOK_USER trong môi trường chạy.
+const TIKTOK_USERNAME = (process.env.TIKTOK_USER || 'cain_von_silford_0')
+  .trim()
+  .replace(/^@/, '');
+
+let isTikTokConnected = false;
+let tiktokRoomId = null;
+let currentTikTokConnection = null;
 
 function broadcast(payload) {
   const message = JSON.stringify(payload);
@@ -37,87 +43,200 @@ function broadcast(payload) {
   });
 }
 
-// Bảng quy đổi quà tặng TikTok -> cấp mồi / số lượt câu
-function mapGiftToBait(giftName, diamondCount, repeatCount) {
-  const totalDiamonds = (diamondCount || 1) * (repeatCount || 1);
+// Khi client mở web, gửi ngay trạng thái kết nối TikTok
+wss.on('connection', (ws) => {
+  ws.send(JSON.stringify({
+    type: 'TIKTOK_STATUS',
+    connected: isTikTokConnected,
+    username: TIKTOK_USERNAME,
+    roomId: tiktokRoomId
+  }));
+});
 
-  if (totalDiamonds >= 100) {
-    return { baitTier: 'LEGENDARY', casts: 1, label: 'Mồi Thần Thoại' };
+// Quà 1 xu nạp mồi; quà 5/10/50 xu cấp buff cho các lượt câu kế tiếp.
+function mapGiftToBait(giftName, diamondCount, repeatCount) {
+  const unitDiamonds = Math.max(1, Math.floor(Number(diamondCount) || 1));
+  const giftCount = Math.max(1, Math.floor(Number(repeatCount) || 1));
+  const totalDiamonds = unitDiamonds * giftCount;
+
+  if (unitDiamonds === 1) {
+    const baitCount = giftCount * 5;
+    return { effect: 'BAIT', baitCount, giftCount, totalDiamonds, label: `+${baitCount} mồi câu` };
   }
-  if (totalDiamonds >= 20) {
-    return { baitTier: 'GOLD', casts: Math.min(repeatCount || 1, 3), label: 'Mồi Vàng' };
+  if (unitDiamonds >= 50) {
+    return { effect: 'BEST_FISH', baitTier: '50XU', baitCount: 0, giftCount, totalDiamonds, label: 'Tăng cơ hội dính cá lớn nhất' };
   }
-  return { baitTier: 'NORMAL', casts: Math.min(repeatCount || 1, 5), label: 'Mồi Thường' };
+  if (unitDiamonds >= 10) {
+    return { effect: 'BIG_FISH', baitTier: '10XU', baitCount: 0, giftCount, totalDiamonds, label: 'Tăng xác suất dính cá lớn' };
+  }
+  if (unitDiamonds >= 5) {
+    return { effect: 'SPEED', baitTier: '5XU', baitCount: 0, giftCount, totalDiamonds, label: 'Tăng tốc độ câu' };
+  }
+  return { effect: 'NONE', baitCount: 0, giftCount, totalDiamonds, label: 'Quà chưa nằm trong mốc 1, 5, 10 hoặc 50 xu' };
 }
 
-async function connectTikTok() {
-  const tiktokLive = new WebcastPushConnection(TIKTOK_USERNAME, {
-    processInitialData: false,
-    enableExtendedGiftInfo: true
-  });
+// Kết nối TikTok Live với cơ chế tự động thử lại (Auto Reconnect)
+let isConnecting = false;
+async function tryConnectTikTok() {
+  if (isTikTokConnected || isConnecting) return;
+  isConnecting = true;
 
   try {
+    console.log(`[TikTok] Đang kiểm tra phòng Live của @${TIKTOK_USERNAME}...`);
+    const tiktokLive = new WebcastPushConnection(TIKTOK_USERNAME, {
+      processInitialData: false,
+      enableExtendedGiftInfo: true
+    });
+
     const state = await tiktokLive.connect();
-    console.log(`Đã kết nối phòng live của @${TIKTOK_USERNAME} (Room ID: ${state.roomId})`);
-  } catch (err) {
-    console.error('Chưa kết nối được TikTok Live (có thể kênh chưa bật live):', err.message);
-  }
+    isTikTokConnected = true;
+    isConnecting = false;
+    tiktokRoomId = state.roomId;
+    currentTikTokConnection = tiktokLive;
 
-  // Lắng nghe bình luận: Người xem cmt "vào câu" (hoặc "vao cau") để tham gia câu vĩnh viễn
-  tiktokLive.on('chat', (data) => {
-    const comment = (data.comment || '').trim().toLowerCase();
-    if (comment.includes('vào câu') || comment.includes('vao cau') || comment === 'vào' || comment === 'cau') {
-      broadcast({
-        type: 'JOIN_COMMENT',
-        userId: data.userId,
-        nickname: data.nickname || data.uniqueId,
-        avatar: data.profilePictureUrl
-      });
-    }
-  });
-
-  // Lắng nghe sự kiện tặng quà
-  tiktokLive.on('gift', (data) => {
-    // Với quà combo (giftType === 1), chỉ xử lý khi kết thúc chuỗi combo để tránh lặp
-    if (data.giftType === 1 && !data.repeatEnd) return;
-
-    const baitInfo = mapGiftToBait(data.giftName, data.diamondCount, data.repeatCount);
+    console.log(`\n==================================================`);
+    console.log(`[TikTok] ✅ ĐÃ KẾT NỐI PHÒNG LIVE CỦA @${TIKTOK_USERNAME}!`);
+    console.log(`[TikTok] Room ID: ${state.roomId}`);
+    console.log(`[TikTok] Đang lắng nghe comment "Vào câu", quà tặng và lượt tim...`);
+    console.log(`==================================================\n`);
 
     broadcast({
-      type: 'GIFT_CAST',
-      userId: data.userId,
-      nickname: data.nickname || data.uniqueId,
-      avatar: data.profilePictureUrl,
-      giftName: data.giftName,
-      repeatCount: data.repeatCount || 1,
-      diamonds: (data.diamondCount || 1) * (data.repeatCount || 1),
-      baitTier: baitInfo.baitTier,
-      casts: baitInfo.casts * 3 // Tặng quà nhận nhiều lượt buff VIP hơn
+      type: 'TIKTOK_STATUS',
+      connected: true,
+      username: TIKTOK_USERNAME,
+      roomId: state.roomId
     });
-  });
 
-  // Người xem thả tim đủ 100 tim -> Tăng tốc độ câu!
-  const likeCounter = new Map();
-  tiktokLive.on('like', (data) => {
-    const current = (likeCounter.get(data.userId) || 0) + (data.likeCount || 1);
-    if (current >= 100) {
-      likeCounter.set(data.userId, current - 100);
+    // Lắng nghe bình luận
+    tiktokLive.on('chat', (data) => {
+      const comment = (data.comment || '').trim();
+      const lower = comment.toLowerCase();
+      console.log(`[Bình luận] ${data.nickname}: "${comment}"`);
+
+      const command = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ');
+      if (command === 'vi tri' || command === 'keo' || command.startsWith('keo ')) {
+        broadcast({
+          type: 'PLAYER_COMMAND',
+          command: command === 'vi tri' ? 'POSITION' : 'PULL',
+          userId: data.userId,
+          nickname: data.nickname || data.uniqueId,
+          uniqueId: data.uniqueId || ''
+        });
+        return;
+      }
+
+      // Bắt các kiểu cmt vào câu
+      if (lower.includes('vào câu') || lower.includes('vao cau') || lower === 'vào' || lower === 'cau' || lower === 'v') {
+        broadcast({
+          type: 'JOIN_COMMENT',
+          userId: data.userId,
+          nickname: data.nickname || data.uniqueId,
+          uniqueId: data.uniqueId || '',
+          avatar: data.profilePictureUrl
+        });
+      }
+    });
+
+    // Lắng nghe quà tặng
+    tiktokLive.on('gift', (data) => {
+      if (data.giftType === 1 && !data.repeatEnd) return; // Chỉ lấy khi hết chuỗi combo
+
+      const baitInfo = mapGiftToBait(data.giftName, data.diamondCount, data.repeatCount);
+      const totalDiamonds = baitInfo.totalDiamonds;
+      console.log(`[Quà tặng] ${data.nickname} tặng ${data.giftName} x${data.repeatCount} (${totalDiamonds} xu) -> ${baitInfo.label}`);
+
+      if (baitInfo.effect === 'NONE') {
+        broadcast({
+          type: 'BAIT_NOTICE',
+          userId: data.userId,
+          nickname: data.nickname || data.uniqueId,
+          message: 'Quà chưa áp dụng; mốc hiện tại là 1, 5, 10 hoặc 50 xu.'
+        });
+        return;
+      }
+
       broadcast({
-        type: 'LIKE_BOOST',
+        type: 'GIFT_CAST',
         userId: data.userId,
         nickname: data.nickname || data.uniqueId,
         avatar: data.profilePictureUrl,
-        likeCount: 100
+        giftName: data.giftName,
+        repeatCount: data.repeatCount || 1,
+        diamonds: totalDiamonds,
+        baitTier: baitInfo.baitTier,
+        baitCount: baitInfo.baitCount,
+        giftCount: baitInfo.giftCount,
+        giftEffect: baitInfo.effect
       });
+    });
+
+    // Lắng nghe thả tim (100 tim tăng tốc độ câu)
+    const likeCounter = new Map();
+    tiktokLive.on('like', (data) => {
+      const current = (likeCounter.get(data.userId) || 0) + (data.likeCount || 1);
+      if (current >= 100) {
+        likeCounter.set(data.userId, current - 100);
+        console.log(`[Thả tim] ${data.nickname} đã thả đủ 100 tim -> Tăng tốc câu!`);
+        broadcast({
+          type: 'LIKE_BOOST',
+          userId: data.userId,
+          nickname: data.nickname || data.uniqueId,
+          avatar: data.profilePictureUrl,
+          likeCount: 100
+        });
+      } else {
+        likeCounter.set(data.userId, current);
+      }
+    });
+
+    // Xử lý khi live kết thúc hoặc ngắt kết nối
+    tiktokLive.on('streamEnd', () => {
+      console.log(`[TikTok] Buổi live của @${TIKTOK_USERNAME} đã kết thúc.`);
+      isTikTokConnected = false;
+      tiktokRoomId = null;
+      currentTikTokConnection = null;
+      broadcast({ type: 'TIKTOK_STATUS', connected: false, username: TIKTOK_USERNAME });
+    });
+
+    tiktokLive.on('disconnected', () => {
+      console.log(`[TikTok] Mất kết nối live. Đang chuẩn bị kết nối lại...`);
+      isTikTokConnected = false;
+      tiktokRoomId = null;
+      currentTikTokConnection = null;
+      broadcast({ type: 'TIKTOK_STATUS', connected: false, username: TIKTOK_USERNAME });
+    });
+
+  } catch (err) {
+    isConnecting = false;
+    isTikTokConnected = false;
+    // Lỗi thường gặp: LIVE has ended (kênh chưa bật Live)
+    if (err.message && err.message.includes('LIVE has ended')) {
+      console.log(`[TikTok] @${TIKTOK_USERNAME} chưa bật Live trên TikTok. (Server sẽ tự động kết nối lại khi bạn Live...)`);
     } else {
-      likeCounter.set(data.userId, current);
+      console.log(`[TikTok] Chưa kết nối được: ${err.message}. Đang thử lại sau...`);
     }
-  });
+    broadcast({
+      type: 'TIKTOK_STATUS',
+      connected: false,
+      username: TIKTOK_USERNAME,
+      error: err.message
+    });
+  }
 }
 
-connectTikTok();
+// Chạy vòng lặp tự động kết nối mỗi 7 giây (nếu chưa kết nối)
+setInterval(() => {
+  if (!isTikTokConnected) {
+    tryConnectTikTok();
+  }
+}, 7000);
 
-const PORT = 3000;
+tryConnectTikTok();
+
+const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, () => {
-  console.log(`Mở game tại: http://localhost:${PORT}`);
+  console.log(`\n==================================================`);
+  console.log(`🎮 Game đang mở tại: http://localhost:${PORT}`);
+  console.log(`Kênh TikTok Live: @${TIKTOK_USERNAME}`);
+  console.log(`==================================================\n`);
 });
